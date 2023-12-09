@@ -31,7 +31,7 @@ def one_hot_embedding_label(label,list_country):
     """
         Construct the one hot encoding of a label
     """
-    one_hot_tensor = torch.zeros(len(list_country), dtype=torch.int)
+    one_hot_tensor = torch.zeros(len(list_country), dtype=torch.float)
     one_hot_tensor[list_country.index(label)] = 1 
     return one_hot_tensor
 
@@ -77,7 +77,12 @@ class NamesDataset(Dataset):
     def __getitem__(self, index):
         """
             Load one item, if large dataset use loading with openning file..
-            How to load one element from the dataset 
+            Returns :
+                Sequence (str) :
+                Label (str) : 
+                Sequence_embedding (tensor [seq_length,embd_size]): if self.transform defined
+                label_embedding (tensor [nb_classes]): if self.transform defined
+
         """
         if self.transform:
             if self.max_seq_length and len(self.x[index])>self.max_seq_length:
@@ -151,7 +156,7 @@ def collate_fn(batch):
     padded_sequences = pad_sequence(x, batch_first=True)
     # print(padded_sequences)
     # Convert labels to a tensor
-    # label_tensor = torch.tensor(labels)
+    y = torch.stack(y) # Stack labels 
     
     return padded_sequences, y, sequences, labels,lengths
 
@@ -171,14 +176,19 @@ def construct_data(dataset_folder="./data",batch_size=4):
     transformer = transform(vocab,list_country)
 
     #? Load the train,val and test data 
+    # next() returns   sequnece_str,label_str, sequence_embd, label_embd
+
     train_data = NamesDataset(os.path.join(dataset_folder,'train.txt'),transform=transformer)
     test_data = NamesDataset(os.path.join(dataset_folder,'test.txt'),transform=transformer)
     val_data = NamesDataset(os.path.join(dataset_folder,'val.txt'),transform=transformer)
 
+    
+
     #? DataLoaders 
-    train_loader = DataLoader(dataset=train_data,batch_size=4,shuffle=True,collate_fn=collate_fn)
-    test_loader = DataLoader(dataset=test_data,batch_size=4,shuffle=False,collate_fn=collate_fn)
-    val_loader = DataLoader(dataset=val_data,batch_size=4,shuffle=False,collate_fn=collate_fn)
+    # next
+    train_loader = DataLoader(dataset=train_data,batch_size=batch_size,shuffle=True,collate_fn=collate_fn)
+    test_loader = DataLoader(dataset=test_data,batch_size=len(test_data),shuffle=False,collate_fn=collate_fn)
+    val_loader = DataLoader(dataset=val_data,batch_size=len(val_data),shuffle=False,collate_fn=collate_fn)
 
     return vocab,country_index,index_country,list_country,train_data,test_data,val_data,train_loader,test_loader,val_loader
 
