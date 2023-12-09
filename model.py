@@ -36,13 +36,14 @@ class RNN(nn.Module):
         packed_sequence = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
         
         #* Forward through the RNN , return  h : final hidden state for each elements in each layers, output contains the output for each timestep in last layer 
-        packed_output, h = self.rnn(packed_sequence)
+        packed_output, h = self.rnn(packed_sequence) # the output is packed
     
-        print(h.size())
+        #! print(h.size()) [nb_layers,size_batch,size_hidden_state]
     
         #* Get output without packing 
         output, _ = pad_packed_sequence(packed_output, batch_first=True)
 
+        print(output.size())
 
         #* out contains the hidden state of all the elements in the seq
         #* out of size [batch_size, seq_length, hidden_size]
