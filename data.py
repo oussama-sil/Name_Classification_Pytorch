@@ -187,8 +187,8 @@ def construct_data(dataset_folder="./data",batch_size=4):
     #? DataLoaders 
     # next
     train_loader = DataLoader(dataset=train_data,batch_size=batch_size,shuffle=True,collate_fn=collate_fn)
-    test_loader = DataLoader(dataset=test_data,batch_size=len(test_data),shuffle=False,collate_fn=collate_fn)
-    val_loader = DataLoader(dataset=val_data,batch_size=len(val_data),shuffle=False,collate_fn=collate_fn)
+    test_loader = DataLoader(dataset=test_data,batch_size=batch_size,shuffle=False,collate_fn=collate_fn)
+    val_loader = DataLoader(dataset=val_data,batch_size=batch_size,shuffle=False,collate_fn=collate_fn)
 
     return vocab,country_index,index_country,list_country,train_data,test_data,val_data,train_loader,test_loader,val_loader
 

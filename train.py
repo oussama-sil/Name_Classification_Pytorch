@@ -8,6 +8,8 @@ from data import construct_data
 from model import RNN
 from eval import accuracy
 
+from torchinfo import summary
+
 # Tensorboard 
 from torch.utils.tensorboard import SummaryWriter 
 
@@ -17,6 +19,8 @@ import tensorflow as tf
 # Suppress TensorFlow warnings
 tf.get_logger().setLevel('ERROR')
 
+torch.cuda.empty_cache()
+# os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:24"
 
 
 def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fct,checkpoint_options,tensorboard_options):
@@ -96,7 +100,8 @@ def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fc
         start_time = time.time()
 
         for i, (x,y,seq,label,lengths) in enumerate(train_loader):
-                
+            # torch.cuda.empty_cache() # to train the large model 
+            
             # Pushing the data to the device
             x,y = x.to(device),y.to(device)
 
@@ -124,7 +129,7 @@ def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fc
 
             # Recoding the average loss on the train data and displaying it to the console 
             if tracking_params["track_loss_train"] or tracking_params["debug_loss"] :
-                tmp_loss_train += loss.item()
+                tmp_loss_train += epoch_loss
                 tmp_loss_train_count += 1
                 
                 if i % tracking_params["track_loss_train_steps"] == 0 or i == nb_batch-1:
@@ -137,9 +142,9 @@ def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fc
                                 if tensorboard_options["tensorboard"] : 
                                     writer.add_scalar(f"""Training Loss -{tensorboard_options["label"]}-""",tmp_loss_train / tmp_loss_train_count,epoch*nb_batch+i)
                         else: # Recording the last loss 
-                            print(f"\t -> Step:{str(i):{6}} ,  Loss = {loss.item():.6f} ")
+                            print(f"\t -> Step:{str(i):{6}} ,  Loss = {epoch_loss:.6f} ")
                             if tracking_params["track_loss_train"]:
-                                loss_train.append(loss.item())
+                                loss_train.append(epoch_loss)
                                 if tensorboard_options["tensorboard"] : 
                                     writer.add_scalar(f"""Training Loss -{tensorboard_options["label"]}- (steps)""",tmp_loss_train / tmp_loss_train_count,epoch*nb_batch+i)
                     
@@ -148,7 +153,7 @@ def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fc
 
         end_time = time.time()
         training_time = end_time - start_time
-
+        print("Evaluating")
         # Recording the loss and evaluation on the validation data at the end of each epoch 
         if tracking_params["track_loss_val"]:
             
@@ -169,6 +174,7 @@ def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fc
                     # Evaluate the model
                     eval_ = eval_fct(y_hat,y)
 
+
                     loss_val.append(loss.item())
                     eval_loss.append(eval_)
 
@@ -176,10 +182,11 @@ def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fc
                         writer.add_scalar(f"""Val Loss -{tensorboard_options["label"]}- """,loss.item(),epoch)
                         writer.add_scalar(f"""Val eval  -{tensorboard_options["label"]}- """,eval_,epoch)
 
+                    break
 
 
             if tracking_params["debug"] :
-                print(f" -> End of epoch,  Train Loss = {epoch_loss / epoch_loss_count:.6f}, Val Loss = {loss.item():.6f}, Eval ={eval_} , , t= {training_time:.2f} seconds \n")
+                print(f" -> End of epoch,  Train Loss = {epoch_loss / epoch_loss_count:.6f}, Val Loss = {loss.item():.6f}, Eval ={eval_} , t= {training_time:.2f} seconds \n")
                 
         elif tracking_params["debug"] :
                 print(f" -> End of epoch,   Train Loss = {epoch_loss / epoch_loss_count:.6f} , t= {training_time:.2f} seconds\n")
@@ -205,10 +212,7 @@ def train(model,data,loss_fct,optimizer,nb_epochs,device,tracking_params,eval_fc
             checkpoint ={
                 "epoch" : epoch, #current epoch
                 "model_state" : model.state_dict(),
-                "optimizer_state" : optimizer.state_dict(),
-                "loss_train" : loss_train,
-                "loss_val":loss_val,
-                "eval_loss" :eval_loss,
+                "optimizer_state" : optimizer.state_dict()
             }
             torch.save(checkpoint,os.path.join(checkpoint_options["checkpoint_folder_path"],f"checkpoint_{epoch}_final.pth"))
 
@@ -234,18 +238,26 @@ if __name__ == "__main__":
 
 
     # Model 
-    model = RNN(input_size=len(vocab), hidden_size=128,num_layers=4,num_classes=len(list_country))
+    model = RNN(input_size=len(vocab), hidden_size=512,num_layers=4,num_classes=len(list_country))
+    # model.half()
     model.to(device)
 
 
     # Print model 
     writer = SummaryWriter("runs/RNN")
     x,y,seq,label,lengths = next(iter(train_loader))
+    # x.bfloat16()
     writer.add_graph(model,x.to(device))
     
 
+    # i = 0
+    # for name, param in model.named_parameters():
+    #     if i<52:
+    #         i += 1
+    #         param.requires_grad = False
+    #         print(f"{name}: {param.requires_grad}")
 
-
+    summary(model,input_data =x.to(device),device=device)   
 
     # Data for train function
     data = (train_loader,val_loader)
@@ -258,7 +270,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # NB epochs 
-    nb_epochs = 50
+    nb_epochs = 8
     tracking_params ={
         "track_loss_train" : True, # Save loss on train data
         "track_loss_train_steps" : 50, # save loss each. .. step

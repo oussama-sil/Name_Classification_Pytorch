@@ -28,3 +28,5 @@ def test(model,test_loader,loss_fct,device,eval_fct):
 
             # Evaluate the model
             eval_ = eval_fct(y_hat,y)
+
+    print(f" Test result Loss = {loss.item()} ,Eval ={eval_}")

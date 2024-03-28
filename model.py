@@ -10,7 +10,7 @@ from data import construct_data
 
 from utils import ConsoleColors
 
-# https://gist.github.com/HarshTrivedi/f4e7293e941b17d19058f6fb90ab0fec : linkk  for padding
+# https://gist.github.com/HarshTrivedi/f4e7293e941b17d19058f6fb90ab0fec : link  for padding
 
 ## RNN Models 
 class RNN(nn.Module):
@@ -83,6 +83,7 @@ if __name__ == "__main__":
     print("=======> Model.py <======")
     vocab,country_index,index_country,list_country,train_data,test_data,val_data,train_loader,test_loader,val_loader = construct_data(dataset_folder="./data",batch_size=6)
 
+    
     
     #? Dataset 
     # examples = iter(train_data)
